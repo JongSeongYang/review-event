@@ -23,6 +23,7 @@ http://localhost:8081/swagger-ui/index.html
 
 * `User` 1:1 `Point`
 * `Point` 1:N `Point_History`
+* `review_id` 와 `place_id`로 `ph_index` 인덱스 생성
 <br/><br/>
 ![DB](https://user-images.githubusercontent.com/60866755/175763753-3c846a66-6b5c-4d12-bbde-0d7ee31c98b5.png)
 
