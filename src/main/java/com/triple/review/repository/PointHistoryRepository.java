@@ -9,7 +9,7 @@ import java.util.UUID;
 
 public interface PointHistoryRepository extends JpaRepository<PointHistoryEntity, UUID> {
 
-    Optional<PointHistoryEntity> findByReviewIdAndPointEntity_IdAndDeletedTimeIsNull(UUID reviewId, UUID pointId);
+    List<PointHistoryEntity> findByReviewIdAndPointEntity_IdAndDeletedTimeIsNullOrderByCreatedTimeDesc(UUID reviewId, UUID pointId);
 
     List<PointHistoryEntity> findByPlaceIdAndDeletedTimeIsNull(UUID placeId);
 }

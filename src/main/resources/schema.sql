@@ -14,7 +14,9 @@ create table point (
 create table point_history (
                                id BINARY(16) not null,
                                `type` varchar(255),
+                               `action` varchar(255),
                                `change` integer,
+                               event_point integer,
                                image_num integer,
                                place_id BINARY(16),
                                review_id BINARY(16),

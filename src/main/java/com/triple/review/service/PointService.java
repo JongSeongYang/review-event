@@ -44,11 +44,11 @@ public class PointService {
             // point 지갑 조회
             PointEntity pointEntity = pointRepository.findByUser_IdAndDeletedTimeIsNull(UUIDFormatter.check(request.getUserId()));
             if (request.getAction().equals(ActionType.ADD.name())) {
-                pointEntity.setPoint(addPoint(pointEntity, request.getReviewId(), pointEntity.getId(), request.getPlaceId(),request.getContent(), request.getAttachedPhotoIds()));
+                pointEntity.setPoint(pointEntity.getPoint() + addPoint(pointEntity, request.getReviewId(), request.getPlaceId(),request.getContent(), request.getAttachedPhotoIds()));
             } else if (request.getAction().equals(ActionType.MOD.name())) {
-                pointEntity.setPoint(modReview(request.getReviewId(), pointEntity.getId(), request.getAttachedPhotoIds()));
+                pointEntity.setPoint(pointEntity.getPoint() + modReview(request.getReviewId(),pointEntity, request.getPlaceId(),request.getAttachedPhotoIds()));
             } else if (request.getAction().equals(ActionType.DELETE.name())) {
-                pointEntity.setPoint(pointEntity.getPoint() - cancelPoint(request.getReviewId(), pointEntity.getId()));
+                pointEntity.setPoint(pointEntity.getPoint() + cancelPoint(request.getReviewId(), pointEntity, request.getPlaceId()));
             }
             else{
                 throw new CustomResponseStatusException(ExceptionCode.WRONG_ACTION, "");
@@ -64,15 +64,38 @@ public class PointService {
     }
 
     @Transactional
-    public Integer cancelPoint(String reviewId, UUID pointId) {
-        PointHistoryEntity pointHistoryEntity = pointHistoryRepository
-                .findByReviewIdAndPointEntity_IdAndDeletedTimeIsNull(UUIDFormatter.check(reviewId), pointId)
-                .orElseThrow(() -> new CustomResponseStatusException(ExceptionCode.HISTORY_NOT_FOUND, ""));
-        pointHistoryEntity.setDeletedTime(LocalDateTime.now(ZoneOffset.UTC));
-        return pointHistoryEntity.getChange();
+    public Integer cancelPoint(String reviewId, PointEntity pointEntity, String placeId) {
+        List<PointHistoryEntity> pointHistoryEntity = pointHistoryRepository
+                .findByReviewIdAndPointEntity_IdAndDeletedTimeIsNullOrderByCreatedTimeDesc(UUIDFormatter.check(reviewId), pointEntity.getId());
+        if(pointHistoryEntity.size() == 0)
+            throw new CustomResponseStatusException(ExceptionCode.HISTORY_NOT_FOUND, "");
+        if(pointHistoryEntity.get(0).getAction().equals(ActionType.DELETE.name()))
+            throw new CustomResponseStatusException(ExceptionCode.HISTORY_NOT_FOUND, "");
+        int pointSum = 0;
+        pointHistoryEntity.stream().map(
+                p -> {
+                    p.setDeletedTime(LocalDateTime.now(ZoneOffset.UTC));
+                    pointHistoryRepository.save(p);
+                    return p;
+                }).collect(Collectors.toList());
+
+        // pointHistory 생성
+        PointHistoryEntity review = PointHistoryEntity.builder()
+                .pointEntity(pointEntity)
+                .change(pointHistoryEntity.get(0).getEventPoint() * -1)
+                .eventPoint(0)
+                .reviewId(UUIDFormatter.check(reviewId))
+                .placeId(UUIDFormatter.check(placeId))
+                .imageNum(pointHistoryEntity.get(0).getImageNum())
+                .type("Review")
+                .action(ActionType.DELETE.name())
+                .deletedTime(LocalDateTime.now(ZoneOffset.UTC))
+                .build();
+        pointHistoryRepository.save(review);
+        return review.getChange();
     }
 
-    public Integer addPoint(PointEntity pointEntity, String reviewId, UUID pointId, String placeId, String content, List<String> imageList) {
+    public Integer addPoint(PointEntity pointEntity, String reviewId, String placeId, String content, List<String> imageList) {
         int point = 0;
         // 해당 장소에 처음 남기는 리뷰인지 체크
         List<PointHistoryEntity> placeReviewList = pointHistoryRepository.findByPlaceIdAndDeletedTimeIsNull(UUIDFormatter.check(placeId));
@@ -82,7 +105,7 @@ public class PointService {
         }
         // 사용자가 해당 장소에 이미 리뷰를 남겼는지 체크
         List<PointHistoryEntity> filteredList = placeReviewList.stream()
-                .filter(p -> p.getPointEntity().getId().equals(pointId))
+                .filter(p -> p.getPointEntity().getId().equals(pointEntity.getId()))
                 .collect(Collectors.toList());
         if(filteredList.size()>0)
             throw new CustomResponseStatusException(ExceptionCode.HISTORY_EXIST, "");
@@ -103,32 +126,48 @@ public class PointService {
         PointHistoryEntity review = PointHistoryEntity.builder()
                 .pointEntity(pointEntity)
                 .change(point)
+                .eventPoint(point)
                 .reviewId(UUIDFormatter.check(reviewId))
                 .placeId(UUIDFormatter.check(placeId))
                 .imageNum(imageSize)
                 .type("Review")
+                .action(ActionType.ADD.name())
                 .build();
         pointHistoryRepository.save(review);
         return review.getChange();
     }
 
     @Transactional
-    public Integer modReview(String reviewId, UUID pointId, List<String> imageList) {
+    public Integer modReview(String reviewId, PointEntity pointEntity, String placeId, List<String> imageList) {
         // 사용자가 남긴 리뷰가 존재하는지 체크
-        PointHistoryEntity pointHistoryEntity = pointHistoryRepository
-                .findByReviewIdAndPointEntity_IdAndDeletedTimeIsNull(UUIDFormatter.check(reviewId), pointId)
-                .orElseThrow(() -> new CustomResponseStatusException(ExceptionCode.HISTORY_NOT_FOUND, ""));
-
+        List<PointHistoryEntity> pointHistoryEntity = pointHistoryRepository
+                .findByReviewIdAndPointEntity_IdAndDeletedTimeIsNullOrderByCreatedTimeDesc(UUIDFormatter.check(reviewId), pointEntity.getId());
+        if(pointHistoryEntity.size() == 0)
+            throw new CustomResponseStatusException(ExceptionCode.HISTORY_NOT_FOUND, "");
         int imageSize = 0;
+        int change = 0;
         // 사진이 삭제됐다면 -1
-        if(pointHistoryEntity.getImageNum() != 0 && (imageList == null || imageList.size() == 0))
-            pointHistoryEntity.setChange(pointHistoryEntity.getChange() - 1);
+        if(pointHistoryEntity.get(0).getImageNum() != 0 && (imageList == null || imageList.size() == 0))
+//            pointHistoryEntity.setChange(pointHistoryEntity.getChange() - 1);
+            change = -1;
         // 사진이 추가됐다면 +1
-        else if(pointHistoryEntity.getImageNum() == 0 && imageList.size() != 0) {
-            pointHistoryEntity.setChange(pointHistoryEntity.getChange() + 1);
+        else if(pointHistoryEntity.get(0).getImageNum() == 0 && imageList.size() != 0) {
+//            pointHistoryEntity.setChange(pointHistoryEntity.getChange() + 1);
+            change = 1;
             imageSize = imageList.size();
         }
-        pointHistoryEntity.setImageNum(imageSize);
-        return pointHistoryEntity.getChange();
+        // pointHistory 생성
+        PointHistoryEntity review = PointHistoryEntity.builder()
+                .pointEntity(pointEntity)
+                .change(change)
+                .eventPoint(pointHistoryEntity.get(0).getEventPoint()+change)
+                .reviewId(UUIDFormatter.check(reviewId))
+                .placeId(UUIDFormatter.check(placeId))
+                .imageNum(imageSize)
+                .type("Review")
+                .action(ActionType.MOD.name())
+                .build();
+        pointHistoryRepository.save(review);
+        return review.getChange();
     }
 }

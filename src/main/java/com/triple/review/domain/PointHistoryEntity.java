@@ -24,12 +24,14 @@ public class PointHistoryEntity extends BaseTimeEntity {
   @Column(columnDefinition = "BINARY(16)")
   private UUID id; // 포인트 지갑 주소
   private String type; // 이벤트 타입
+  private String action; // 이벤트 타입
   @ManyToOne
   @JoinColumn(name = "pointId")
   private PointEntity pointEntity; // 포인트 지갑 주소
   private UUID reviewId; // 작성한 리뷰 ID
   private UUID placeId; // 장소 ID
   private Integer change; // 포인트 변동량
+  private Integer eventPoint; // 이벤트로 얻은 포인트
   private Integer imageNum;
   private LocalDateTime deletedTime;
 }
