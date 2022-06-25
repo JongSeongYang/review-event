@@ -13,8 +13,8 @@ create table point (
 
 create table point_history (
                                id BINARY(16) not null,
-                               type varchar(255),
-                               change integer,
+                               `type` varchar(255),
+                               `change` integer,
                                image_num integer,
                                place_id BINARY(16),
                                review_id BINARY(16),
@@ -25,7 +25,7 @@ create table point_history (
                                primary key (id)
 );
 
-create table user (
+create table `user` (
                       id BINARY(16) not null,
                       email varchar(255),
                       point_id BINARY(16),
