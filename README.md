@@ -94,6 +94,20 @@ String userId;
 <br/><br/>
 3. Event `Post` `/Events` 
 >> 삭제 요청이 발생하면 `deletedTime` 필드를 `null`에서 현재 시간(UTC)으로 변경
+* RequestBody
+```
+{
+  "action": "string",
+  "attachedPhotoIds": [
+    "string"
+  ],
+  "content": "string",
+  "placeId": "string",
+  "reviewId": "string",
+  "type": "string",
+  "userId": "string"
+}
+```
 * Response(success)
 ```
 {
@@ -107,4 +121,12 @@ String userId;
   * 잘못된 Action 일 경우 -> WRONG_ACTION`
 
 <br/><br/>
+### 실행 방법
+
+1. porject를 받은 후 Setting > Build, Execution, Deployment > Gradle > Gradle JVM > java 11로 설정
+2. project structure > project > project SDK > java 11로 설정
+3. application 실행
+4. Swagger에 접속 후 User 생성
+5. Swagger 를 통해 Event Request를 보내거나 Postman을 사용하여 Request를 보내어 Test
+6. `/h2-console` 에 접속하여 DB 확인
 <br/><br/>
