@@ -18,6 +18,7 @@ http://localhost:8081/swagger-ui/index.html
 * Address : http://localhost:8081/h2-console
 * username : sa
 * password : 
+* Schema : src > main > resources > schema.sql
 
 ### DB 구조
 
